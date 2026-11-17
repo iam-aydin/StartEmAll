@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Launcher;
 
@@ -138,7 +139,7 @@ static class SettingsPages
 
     static void SetStartup(bool on)
     {
-        string lnk = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Launcher.lnk");
+        string lnk = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "StartEmAll.lnk");
         try
         {
             if (on)
@@ -151,9 +152,32 @@ static class SettingsPages
                 s.WorkingDirectory = System.IO.Path.GetDirectoryName(exe);
                 s.Save();
             }
-            else if (System.IO.File.Exists(lnk)) System.IO.File.Delete(lnk);
+            else
+            {
+                if (System.IO.File.Exists(lnk)) System.IO.File.Delete(lnk);
+                string old = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Launcher.lnk");   // pre-rename shortcut
+                if (System.IO.File.Exists(old)) System.IO.File.Delete(old);
+            }
         }
         catch { }
+    }
+
+    const string RepoUrl = "https://github.com/iam-aydin/StartEmAll";
+
+    static void OpenUrl(string url)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+    }
+
+    // the largest frame of the embedded app.ico
+    static ImageSource? AppIconImage()
+    {
+        try
+        {
+            var dec = new IconBitmapDecoder(new Uri("pack://application:,,,/app.ico"), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+            return dec.Frames.OrderByDescending(f => f.PixelWidth).First();
+        }
+        catch { return null; }
     }
 
     // ------------------------------ pages ------------------------------
@@ -165,7 +189,7 @@ static class SettingsPages
         var h = W.PageHost;
         h.Children.Clear();
         var titles = new System.Collections.Generic.Dictionary<string, string>
-            { ["appearance"] = "Appearance", ["strip"] = "Side strip", ["general"] = "General" };
+            { ["appearance"] = "Appearance", ["strip"] = "Side strip", ["general"] = "General", ["about"] = "About" };
         var tt = Text(titles[key], 24, FontWeights.SemiBold, false); tt.Margin = new Thickness(4, 8, 0, 22);
         h.Children.Add(tt);
         var c = Config.Cur;
@@ -200,11 +224,23 @@ static class SettingsPages
                         Slide(100, 1000, c.StripDwell, 50, "F0", v => { Config.Cur.StripDwell = Math.Round(v); Config.Save(); }))));
                 break;
 
+            case "about":
+                var logo = new Image { Source = AppIconImage(), Width = 56, Height = 56 };
+                RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
+                var ver = typeof(SettingsPages).Assembly.GetName().Version;
+                string verText = ver == null ? "" : $"{ver.Major}.{ver.Minor}.{Math.Max(0, ver.Build)}";
+                h.Children.Add(Group(null,
+                    Row("StartEmAll", "Quick launcher for your apps and games, with a side strip", logo),
+                    Row("Version", null, Text(verText, 13, null, true))));
+                h.Children.Add(Group("Links",
+                    Row("GitHub", "github.com/iam-aydin/StartEmAll", TxtBtn("Open GitHub", () => OpenUrl(RepoUrl)))));
+                break;
+
             case "general":
-                string lnk = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Launcher.lnk");
+                string lnk = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "StartEmAll.lnk");
                 h.Children.Add(Group("Window",
                     Row("Close button", "What the X in the launcher does",
-                        Seg(new[] { ("Hide", "Hide to tray"), ("Quit", "Quit") }, c.CloseAction, v => { Config.Cur.CloseAction = v; Config.Save(); })),
+                        Seg(new[] { ("Hide", "Hide to tray"), ("Quit", "Quit") }, c.CloseAction, v => { Config.Cur.CloseAction = v; Config.Save(); Core.Main.UpdateCloseGlyph(); })),
                     Row("Hide after launching", "Close the launcher when a shortcut is started",
                         Switch(c.HideAfterLaunch, on => { Config.Cur.HideAfterLaunch = on; Config.Save(); }))));
                 h.Children.Add(Group("System",
@@ -215,9 +251,9 @@ static class SettingsPages
                         Config.Save();
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{Config.Path_}\"") { UseShellExecute = true });
                     })),
-                    Row("Reset", "Restore every setting and the default shortcuts", TxtBtn("Reset all settings", () =>
+                    Row("Reset", "Restore every setting and remove all shortcuts", TxtBtn("Reset all settings", () =>
                     {
-                        if (MessageBox.Show("Reset all settings to defaults?", "Launcher", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                        if (MessageBox.Show("Reset all settings to defaults?", "StartEmAll", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                         {
                             Config.Cur = Config.Defaults();
                             Core.Commit("look", "tiles");

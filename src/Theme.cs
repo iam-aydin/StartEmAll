@@ -155,6 +155,8 @@ static class Theme
 
         if (h != IntPtr.Zero) Native.ClearRegion(h);     // no custom clip any more (it could not be anti-aliased)
 
+        if (w is MainWindow cw) cw.UpdateCloseGlyph();
+
         // scroll bars are off unless the user enabled them
         var vis = Config.Cur.Scrollbars ? ScrollBarVisibility.Auto : ScrollBarVisibility.Hidden;
         if (w is MainWindow mw && mw.Scroller != null) mw.Scroller.VerticalScrollBarVisibility = vis;

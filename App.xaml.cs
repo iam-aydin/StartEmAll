@@ -13,7 +13,7 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        _single = new Mutex(true, "Launcher.SingleInstance", out bool first);
+        _single = new Mutex(true, "StartEmAll.SingleInstance", out bool first);
         if (!first) { Shutdown(); return; }
 
         try { Timeline.DesiredFrameRateProperty.OverrideMetadata(typeof(Timeline), new FrameworkPropertyMetadata { DefaultValue = 144 }); }

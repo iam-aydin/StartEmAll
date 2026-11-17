@@ -12,16 +12,24 @@ namespace Launcher;
 static class IconStore
 {
     public const int Max = 256;
-    public const string Filter = "Images|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|All files|*.*";
+    public const string Filter = "Images and programs|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.exe;*.dll;*.lnk|Images|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|Programs|*.exe;*.dll;*.lnk|All files|*.*";
 
-    static string Dir => Path.Combine(AppContext.BaseDirectory, "icons");
+    static string Dir => Path.Combine(Config.DataDir, "icons");
 
-    public static string? Import(string src)
+    public static string? Import(string src, int index = 0)
     {
         try
         {
             BitmapSource img;
-            if (Path.GetExtension(src).Equals(".ico", StringComparison.OrdinalIgnoreCase))
+            string ext = Path.GetExtension(src);
+            if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase) || ext.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                // icon taken out of a program (a .lnk is followed to its exe), up to 256 px
+                var ic = AppLauncher.GetIcon(src, Max, index);
+                if (ic == null) return null;
+                img = ic;
+            }
+            else if (ext.Equals(".ico", StringComparison.OrdinalIgnoreCase))
             {
                 BitmapDecoder dec;
                 using (var fs = File.OpenRead(src))

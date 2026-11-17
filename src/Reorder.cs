@@ -31,6 +31,29 @@ static class Reorder
         public bool Swapped;
     }
     static Drag? D;
+    // the strip cards take the strip's slots in the new order, every other card keeps its place
+    static void ApplyStripOrder(List<AppEntry> order)
+    {
+        var all = Config.Ordered();
+        int k = 0;
+        for (int i = 0; i < all.Count; i++) if (all[i].Strip) all[i] = order[k++];
+        Config.Cur.Apps.Clear();
+        Config.Cur.Apps.AddRange(all);
+        StripController.KeepOpen = true;
+    }
+
+    // right-click menu: move one strip shortcut to the first / last place
+    public static void MoveInStrip(AppEntry app, bool toTop)
+    {
+        var order = Config.Ordered().Where(a => a.Strip).ToList();
+        if (!order.Remove(app)) return;
+        if (toTop) order.Insert(0, app); else order.Add(app);
+        ApplyStripOrder(order);
+        Config.Cur.Sort = "Custom";
+        Core.Commit("tiles");
+        StripController.KeepOpen = false;
+    }
+
     static Panel PanelOf(Tile t) => t.IsMain ? Core.Main.TilesPanel : Core.Strip.TilesPanel;
     static DispatcherTimer? pump;         // keeps autoscroll going while the cursor rests near an edge
 
@@ -149,13 +172,7 @@ static class Reorder
         }
         else
         {
-            // strip order: the strip cards take the strip's slots in the new order, every other card keeps its place
-            var all = Config.Ordered();
-            int k = 0;
-            for (int i = 0; i < all.Count; i++) if (all[i].Strip) all[i] = order[k++];
-            Config.Cur.Apps.Clear();
-            Config.Cur.Apps.AddRange(all);
-            StripController.KeepOpen = true;
+            ApplyStripOrder(order);
         }
         Config.Cur.Sort = "Custom";
         Core.Commit("tiles");                                       // saves settings.json and rebuilds the cards (clears the drag transforms)

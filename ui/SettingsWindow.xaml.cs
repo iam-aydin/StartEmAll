@@ -16,7 +16,7 @@ public partial class SettingsWindow : Window
 
         // side navigation, built here so the highlight can glide between entries
         var slide = new SlideSel(NavHost, 16, new Thickness(0, 2, 0, 2));
-        foreach (var (tag, glyph, label) in new[] { ("appearance", "\uE771", "Appearance"), ("strip", "\uE700", "Side strip"), ("general", "\uE713", "General") })
+        foreach (var (tag, glyph, label) in new[] { ("appearance", "\uE771", "Appearance"), ("strip", "\uE700", "Side strip"), ("general", "\uE713", "General"), ("about", "\uE946", "About") })
         {
             var (content, sel) = SlideSel.Layers(key =>
             {

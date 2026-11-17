@@ -5,6 +5,15 @@
         ShowInTaskbar="False" ResizeMode="NoResize" Topmost="True" ShowActivated="False"
         FontFamily="Segoe UI Variable Text, Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
   <Border x:Name="Root" CornerRadius="8" BorderThickness="1" Background="{DynamicResource PanelTint}" BorderBrush="{DynamicResource PanelEdge}">
-    <StackPanel x:Name="TilesPanel" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+    <Grid>
+      <StackPanel x:Name="TilesPanel" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+      <Popup x:Name="TileMenu" Placement="MousePoint" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+        <Border CornerRadius="14" BorderThickness="1" Padding="4" Margin="0,0,12,12" MinWidth="170"
+                Background="{DynamicResource PanelSolid}" BorderBrush="{DynamicResource PanelEdge}">
+          <Border.Effect><DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.35"/></Border.Effect>
+          <StackPanel x:Name="TileItems"/>
+        </Border>
+      </Popup>
+    </Grid>
   </Border>
 </Window>

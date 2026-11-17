@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Media3D;
@@ -158,11 +159,16 @@ sealed class Tile
         Pa0 = pal.A0; Pa1 = pal.A1; Ptr = pal.Tr; Ptg = pal.Tg; Ptb = pal.Tb;
         IsMain = ReferenceEquals(win, Core.Main);
 
+        // side strip has no labels: hovering a card shows a small box with the shortcut's name
+        if (!showLabel && !app.IsAdd) AttachNameTip(pal);
+
         Button.PreviewMouseLeftButtonDown += (s, e) => Reorder.Suppress = false;
         Button.Click += (s, e) => { if (!Reorder.Suppress) AppLauncher.Launch(App); };   // a long press that turned into a drag must not launch
         Button.MouseRightButtonUp += (s, e) =>
         {
-            if (IsMain && !App.IsAdd) { e.Handled = true; Core.Main.ShowTileMenu(App); }
+            if (App.IsAdd) return;
+            e.Handled = true;
+            if (IsMain) Core.Main.ShowTileMenu(App); else Core.Strip.ShowTileMenu(App);
         };
         if (!app.IsAdd) Reorder.Attach(this);     // hold + drag to reorder, in the main window and in the strip
         Button.MouseEnter += (s, e) =>
@@ -187,6 +193,30 @@ sealed class Tile
         };
 
         Core.Cards.Add(this);
+    }
+
+    void AttachNameTip(Pal pal)
+    {
+        var panel = ((SolidColorBrush)Core.Strip.FindResource("PanelSolid")).Color;
+        var box = new Border
+        {
+            CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Padding = new Thickness(10, 5, 10, 5),
+            Margin = new Thickness(4), Background = Theme.Br(panel), BorderBrush = Theme.Br(pal.PanelEdge),
+            Effect = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 1, Opacity = 0.3 },
+            Child = new TextBlock { Text = App.N, FontSize = 12, Foreground = Theme.Br(pal.Fg), TextWrapping = TextWrapping.NoWrap }
+        };
+        var tip = new ToolTip { Content = box, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), HasDropShadow = false };
+        var tpl = new ControlTemplate(typeof(ToolTip));
+        tpl.VisualTree = new FrameworkElementFactory(typeof(ContentPresenter));
+        tip.Template = tpl;
+        Button.ToolTip = tip;
+        ToolTipService.SetInitialShowDelay(Button, 150);
+        ToolTipService.SetBetweenShowDelay(Button, 0);
+        ToolTipService.SetShowDuration(Button, 10000);
+        ToolTipService.SetPlacement(Button, Config.Cur.StripSide switch
+        {
+            "Left" => PlacementMode.Right, "Top" => PlacementMode.Bottom, "Bottom" => PlacementMode.Top, _ => PlacementMode.Left
+        });
     }
 
     public static void SetPersp()

@@ -61,23 +61,83 @@ static class AppLauncher
         return null;
     }
 
-    public static BitmapSource? GetIcon(string? path)
+    // .lnk -> where it really points (target exe, arguments, and the icon the shortcut itself uses, if any)
+    public sealed class LnkInfo
     {
-        if (string.IsNullOrEmpty(path)) return null;
+        public string Target = "", Args = "", IconPath = "";
+        public int IconIndex;
+    }
+
+    public static LnkInfo? ReadLnk(string lnk)
+    {
+        object? sh = null, sc = null;
         try
         {
-            var h = new IntPtr[1]; var id = new uint[1];
-            uint n = Native.PrivateExtractIcons(path, 0, 128, 128, h, id, 1, 0);
-            if (n > 0 && h[0] != IntPtr.Zero)
+            sh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell")!);
+            dynamic d = sh!;
+            sc = d.CreateShortcut(lnk);
+            dynamic s = sc!;
+            var li = new LnkInfo
             {
-                var src = Imaging.CreateBitmapSourceFromHIcon(h[0], Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-                src.Freeze();
-                Native.DestroyIcon(h[0]);
-                return src;
+                Target = Environment.ExpandEnvironmentVariables((string)(s.TargetPath ?? "")),
+                Args = (string)(s.Arguments ?? "")
+            };
+            string loc = (string)(s.IconLocation ?? "");          // "path,index"
+            int comma = loc.LastIndexOf(',');
+            if (comma > 0 && int.TryParse(loc.Substring(comma + 1).Trim(), out int idx)) { li.IconIndex = idx; loc = loc.Substring(0, comma); }
+            li.IconPath = Environment.ExpandEnvironmentVariables(loc.Trim());
+            return li;
+        }
+        catch { return null; }
+        finally
+        {
+            if (sc != null) try { System.Runtime.InteropServices.Marshal.ReleaseComObject(sc); } catch { }
+            if (sh != null) try { System.Runtime.InteropServices.Marshal.ReleaseComObject(sh); } catch { }
+        }
+    }
+
+    static bool IsLnk(string? p) => !string.IsNullOrEmpty(p) && Path.GetExtension(p).Equals(".lnk", StringComparison.OrdinalIgnoreCase);
+
+    // big icon (up to 256 px) from an exe / dll / ico; for a .lnk it follows the shortcut to its icon or its target exe
+    public static BitmapSource? GetIcon(string? path, int size = 256, int index = 0)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+
+        if (IsLnk(path))
+        {
+            var li = ReadLnk(path);
+            if (li != null)
+            {
+                if (li.IconPath.Length > 0 && !IsLnk(li.IconPath) && File.Exists(li.IconPath))
+                {
+                    var r = GetIcon(li.IconPath, size, li.IconIndex);
+                    if (r != null) return r;
+                }
+                if (li.Target.Length > 0 && !IsLnk(li.Target) && File.Exists(li.Target))
+                {
+                    var r = GetIcon(li.Target, size);
+                    if (r != null) return r;
+                }
             }
         }
-        catch { }
-        try   // .lnk, .url and plain files: the shell's own icon for the file
+
+        foreach (int sz in new[] { size, 128, 64 })
+        {
+            try
+            {
+                var h = new IntPtr[1]; var id = new uint[1];
+                uint n = Native.PrivateExtractIcons(path, index, sz, sz, h, id, 1, 0);
+                if (n > 0 && h[0] != IntPtr.Zero)
+                {
+                    var src = Imaging.CreateBitmapSourceFromHIcon(h[0], Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                    src.Freeze();
+                    Native.DestroyIcon(h[0]);
+                    return src;
+                }
+            }
+            catch { }
+        }
+        try   // .url and plain files: the shell's own icon for the file (small, but better than nothing)
         {
             using var ic = System.Drawing.Icon.ExtractAssociatedIcon(path);
             if (ic != null)
@@ -93,13 +153,35 @@ static class AppLauncher
 
     const string PickFilter = "Shortcuts and programs|*.exe;*.lnk;*.bat;*.cmd;*.url|All files|*.*";
 
+    // adds one shortcut. A .lnk is followed to the real exe it points to (name and arguments are kept), so the
+    // card gets the exe's full-size icon instead of the tiny shell icon of the .lnk itself.
+    public static void AddPath(string f)
+    {
+        string name = Path.GetFileNameWithoutExtension(f), path = f, args = "";
+        string iconSrc = ""; int iconIdx = 0;
+        if (IsLnk(f))
+        {
+            var li = ReadLnk(f);
+            if (li != null && li.Target.Length > 0 && !IsLnk(li.Target) && File.Exists(li.Target))
+            {
+                path = li.Target; args = li.Args;
+                // the shortcut has its own icon (not the exe's)? keep that one
+                if (li.IconPath.Length > 0 && !IsLnk(li.IconPath) && File.Exists(li.IconPath)
+                    && !string.Equals(Path.GetFullPath(li.IconPath), Path.GetFullPath(li.Target), StringComparison.OrdinalIgnoreCase))
+                { iconSrc = li.IconPath; iconIdx = li.IconIndex; }
+            }
+        }
+        var e = new AppEntry(name, 0xE8A5, path, false) { Args = args };
+        if (iconSrc.Length > 0) e.Icon = IconStore.Import(iconSrc, iconIdx) ?? "";
+        Config.Cur.Apps.Add(e);
+    }
+
     // "+" card: pick one or more shortcuts / programs / files to add
     public static void AddShortcuts()
     {
         var dlg = new Microsoft.Win32.OpenFileDialog { Filter = PickFilter, Multiselect = true, Title = "Add shortcut" };
         if (dlg.ShowDialog() != true) return;
-        foreach (var f in dlg.FileNames)
-            Config.Cur.Apps.Add(new AppEntry(Path.GetFileNameWithoutExtension(f), 0xE8A5, f, false));
+        foreach (var f in dlg.FileNames) AddPath(f);
         Core.Commit("tiles");
     }
 

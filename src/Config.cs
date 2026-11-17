@@ -48,7 +48,23 @@ static class Config
 {
     public static Settings Cur = Defaults();
 
-    static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
+    // settings.json + icons\ live next to the exe; if that folder is read-only (e.g. installed in Program Files) use %APPDATA%\StartEmAll
+    public static readonly string DataDir = ResolveDataDir();
+    static string ResolveDataDir()
+    {
+        try
+        {
+            string t = Path.Combine(AppContext.BaseDirectory, ".write-test");
+            File.WriteAllText(t, ""); File.Delete(t);
+            return AppContext.BaseDirectory;
+        }
+        catch { }
+        string d = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StartEmAll");
+        try { Directory.CreateDirectory(d); } catch { }
+        return d;
+    }
+
+    static readonly string FilePath = Path.Combine(DataDir, "settings.json");
     static readonly JsonSerializerOptions Opt = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -67,19 +83,7 @@ static class Config
 
     static Settings DefaultsRaw() => new()
     {
-        Apps = new List<AppEntry>
-        {
-            new("Unreal Project", 0xE7FC, @"C:\Program Files\Epic Games\UE_5.*\Engine\Binaries\Win64\UnrealEditor.exe", false),
-            new("Unreal",  0xE7FC, @"C:\Program Files\Epic Games\UE_5.*\Engine\Binaries\Win64\UnrealEditor.exe", true),
-            new("GAM",     0xE8B9, "", true),
-            new("Brave",   0xE774, @"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe", true),
-            new("Lantern", 0xE839, @"%LOCALAPPDATA%\Lantern\lantern.exe|C:\Program Files*\Lantern\lantern.exe", false),
-            new("OBS",     0xE714, @"C:\Program Files\obs-studio\bin\64bit\obs64.exe", true),
-            new("Blender", 0xE7B8, @"C:\Program Files\Blender Foundation\Blender *\blender.exe", true),
-            new("Discord", 0xE8BD, @"%LOCALAPPDATA%\Discord\app-*\Discord.exe", false),
-            new("GitHub",  0xE943, @"%LOCALAPPDATA%\GitHubDesktop\app-*\GitHubDesktop.exe", false),
-            new("Grab",    0xE722, "", false),
-        }
+        Apps = new List<AppEntry>()          // starts empty: the user adds their own shortcuts
     };
 
     public static void Load()
@@ -122,7 +126,7 @@ static class Config
 
     public static string SortLabel() => Cur.Sort switch
     {
-        "NameAsc" => "Name \u2193", "NameDesc" => "Name \u2191", "Newest" => "Newest", "Oldest" => "Oldest", _ => "Custom"
+        "NameAsc" => "Name \u2193", "NameDesc" => "Name \u2191", "Newest" => "Newest", "Oldest" => "Oldest", _ => "Personalized"
     };
 
     public static void Save()

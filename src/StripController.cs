@@ -19,6 +19,7 @@ static class StripController
 {
     public static volatile bool Shown;
     public static volatile bool Dragging;        // a card is being reordered: never auto-hide
+    public static volatile bool MenuOpen;       // the right-click menu is showing: never auto-hide
     public static bool KeepOpen;                 // a rebuild must not hide / move the open strip
     public static int Count;
     public static double W = 98, H = 440;
@@ -168,7 +169,7 @@ static class StripController
         else
         {
             dwell = -1;
-            if (Dragging) { leave = -1; entered = true; return; }
+            if (Dragging || MenuOpen) { leave = -1; entered = true; return; }
             Rectangle r; lock (gate) r = stripRect;
             r.Inflate(36, 36);
             bool slidingAlongEdge = !entered && InEdge(System.Windows.Forms.Screen.FromPoint(p), p);   // heading for the strip along the edge

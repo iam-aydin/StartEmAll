@@ -47,7 +47,7 @@ static class Core
         ni = new System.Windows.Forms.NotifyIcon
         {
             Icon = AppIcon(),
-            Text = "Launcher",
+            Text = "StartEmAll",
             Visible = true,
             ContextMenuStrip = new System.Windows.Forms.ContextMenuStrip()
         };
