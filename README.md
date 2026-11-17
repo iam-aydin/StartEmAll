@@ -26,11 +26,7 @@
 
 <br>
 
-<p align="center">
-  <img src="docs/images/startemall-main.png" alt="The StartEmAll main window: a grid of shortcut cards, one tilted toward the cursor" width="80%">
-  <br>
-  <sub>The main window. Cards tilt toward your cursor and catch a soft light as you move over them.</sub>
-</p>
+
 
 <br>
 
